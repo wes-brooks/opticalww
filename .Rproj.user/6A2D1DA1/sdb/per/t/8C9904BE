@@ -1,0 +1,22 @@
+{
+    "contents" : "",
+    "created" : 1394471541658.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "8C9904BE",
+    "lastKnownWriteTime" : 1818846758,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "caption" : "dfAll",
+        "contentUrl" : "content?title=dfAll&file=08a780e0c797465b9c5a00808523bf70.htm",
+        "displayedObservations" : 313,
+        "displayedVariables" : 100,
+        "totalObservations" : 313,
+        "variables" : 180
+    },
+    "source_on_save" : false,
+    "type" : "r_dataframe"
+}
