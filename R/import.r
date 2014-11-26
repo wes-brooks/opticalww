@@ -18,13 +18,20 @@ freqs = within(freqs, {
 })
 
 #for observation i, extract the values of the excitation-emission spectrum
+a = array(NA, c(55,41,156))
 eem = matrix(NA,0,3)
-for (i in 1) {
+for (i in 1:55) {
     temp = cbind(freqs, t(ss[i,indx]))
     rownames(temp) = NULL
     colnames(temp)[3] = 'val'
-    eem = rbind(eem, temp)
+    #eem = rbind(eem, temp)
+    
+    wide = acast(temp, excite~emit)
+    a[i,,] = wide
 }
+
+#Necessary for the ThreeWay package to do PARAFAC:
+a[is.na(a)]=0
 
 eem2 = freqs
 for (i in 1:55) {
@@ -39,4 +46,4 @@ anomaly = cbind(freqs, anomaly)
 
 
 
-wide = acast(anomaly, excite~emit)
+
