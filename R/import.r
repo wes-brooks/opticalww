@@ -3,6 +3,7 @@ library(reshape2)
 
 #import the SS data
 ss = read.csv("data/SSvectorized.csv")
+ssum = read.csv("data/SSSummaryOct222014.csv")
 
 #find the columns corresponding to excitation-emission data
 indx = grepl("f(\\d{3})\\.(\\d{3})", colnames(ss)) %>% which
