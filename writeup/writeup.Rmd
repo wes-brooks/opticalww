@@ -1,0 +1,18 @@
+---
+title: "variable selection for EEMs models"
+author: "Wesley Brooks"
+date: "Thursday, December 18, 2014"
+output: html_document
+---
+
+#Introduction
+The goal is to identify which signals are important for predicting the concentration of Bac.human, Lachno2, and FC. The signals are predetermined combinations of signals from the excitation-emission matrix (EEM).
+
+#Methods
+A bootstrap study was used to assess which variables are most important for modeling the responses. Fifty bootstrap replications of the data set were produced, and each was used to generate a model. Within each model, the optimal number of regression trees was estimated by five-fold cross validation. Then the random forest model with the estimated tree number was summarized by the percentage of splits attributed to each covariate. The variables were ranked by mean split percentage and by the split percentage ranks.
+
+The bootstrap analysis was repeated for each response.
+
+Because the bacterial counts apparently have a power-law relationship between mean and variance (i.e., the variance is proportional to the mean), the models are fitted to the log-transformed counts. However, the log transformation is problematic because some of the response variables were measured as zero. A censored regression approach was tried, where the transformed response is -log(concentration) if concentration > 0, or is assumed censored at zero if  concentration == 0. This implies that the detection limit was 1.
+
+Another option is to leave the response untransformed, since the random forest model is not a linear function. 
