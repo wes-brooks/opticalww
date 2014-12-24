@@ -1,5 +1,5 @@
 ---
-title: "variable selection for EEMs models"
+title: "Using an excitation-emission spectrum to predict contamination in water samples"
 author: "Wesley Brooks"
 date: "Thursday, December 18, 2014"
 output: html_document

@@ -5,15 +5,16 @@ library(survival)
 source("R/import.r")
 
 #Constants used to simplify the code:
-B = 50 #Number of ways to slice the data
+B = 2 #Number of ways to slice the data
 n = nrow(ssum) #number of total observations
 h = 10 #Number of held-out observations in each slice of the data
 
 #Settings for GBM modeling:
-n.trees = 3000
+n.trees = 20000
 n.minobsinnode = 4
 interaction.depth = 3
 responses = c("Lachno.2", "Bac.human", "FC")
+lim.detect = c(Lachno.2=100, Bac.human=100, FC=100)
 
 #Extract the summary variables:
 ssum2 = ssum[,47:ncol(ssum)]
@@ -31,17 +32,29 @@ infmean = list()
 ordmean = list()
 nothing = list()
 
+inf_untrans = list()
+ord_untrans = list()
+infmean_untrans = list()
+ordmean_untrans = list()
+nothing_untrans = list()
+
+
 #Slice up the data in B different ways:
 indx = lapply(1:B, function(b) sample(1:n, replace=TRUE))
 
 for (r in responses) {
-    tmp = ssum2
-    
     #Add the response to ssum2:
+    tmp = ssum2
     tmp$r = ssum[[r]]
+    
+    #Set up objects to hold the results:
     inf[[r]] = matrix(NA, 0, length(vars))
     ord[[r]] = matrix(NA, 0, length(vars))
     colnames(inf[[r]]) = vars
+    
+    inf_untrans[[r]] = matrix(NA, 0, length(vars))
+    ord_untrans[[r]] = matrix(NA, 0, length(vars))
+    colnames(inf_untrans[[r]]) = vars
     
     #Model the response on each slice of the data, recording the ordering of the covariates:
     for (i in 1:B) {
@@ -58,9 +71,92 @@ for (r in responses) {
     #Compute the mean ordering:
     ordmean[[r]] = colMeans(ord[[r]])
     infmean[[r]] = colMeans(inf[[r]])
-    
     nothing[[r]] = sapply(1:ncol(ord[[r]]), function(j) all(ord[[r]][,order(ordmean[[r]])][,j]==j)) %>% which
+    
+    #Model the response on each slice of the data, recording the ordering of the covariates:
+    for (i in 1:B) {
+        boot = tmp[indx[[i]],]
+        m = gbm(r~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, cv.folds=5)
+        nt = gbm.perf(m)
+        summ = summary(m, n.trees=nt, plotit=FALSE)
+        
+        o = order(as.character(summ$var))
+        inf_untrans[[r]] = rbind(inf_untrans[[r]], summ$rel.inf[o])
+        ord_untrans[[r]] = rbind(ord_untrans[[r]], o)
+    }
+    
+    #Compute the mean ordering:
+    ordmean_untrans[[r]] = colMeans(ord_untrans[[r]])
+    infmean_untrans[[r]] = colMeans(inf[[r]])
+    nothing_untrans[[r]] = sapply(1:ncol(ord_untrans[[r]]), function(j) all(ord_untrans[[r]][,order(ordmean_untrans[[r]])][,j]==j)) %>% which
 }
+
+
+#Normalize the data:
+ss.summ.normed = sweep(ssum2, 2, colMeans(ssum2))
+colnorm = apply(ss.summ.normed, 2, function(x) sqrt(sum(x**2)/ncol(ss.summ.normed)))
+ss.summ.normed = sweep(ss.summ.normed, 2, colnorm^(-1), '*')
+
+#Objects to hold the results:
+ll = list()
+coefs = list()
+res = list()
+ll.pred = list()
+
+for (b in 1:B) {
+    boot = ss.summ.normed[indx[[b]],]
+    validation = ss.summ.normed[-indx[[b]],]
+    
+    coefs[[b]] = list()
+    ll[[b]] = list()
+    res[[b]] = list()
+    ll.pred[[b]] = list()
+    
+    for (r in responses) { 
+        resp = log(ssum[[r]][indx[[b]]])
+        resp.validation = log(ssum[[r]][-indx[[b]]])
+        limdetect = log(lim.detect[r])
+        
+        coefs[[b]][[r]] = vector()
+        ll[[b]][[r]] = vector()
+        res[[b]][[r]] = vector()
+        ll.pred[[b]][[r]] = vector()
+        
+        for (i in 1:ncol(ssum2)) {    
+            m = censReg(resp~boot[,i], left=limdetect)
+            coef.m = coef(m, logSigma=FALSE)
+            sigma = coef.m['sigma']
+            pred = rowSums(sweep(cbind(1,validation[,i]), 2, coef.m[1:2], '*'))
+            
+            llpred.here = ifelse(resp.validation>limdetect, dnorm(resp.validation, mean=pred, sd=sigma), 1-pnorm(pred, mean=limdetect, sd=sigma))
+            
+            ll.pred[[b]][[r]] = c(ll.pred[[b]][[r]], sum(llpred.here))
+            ll[[b]][[r]] = c(ll[[b]][[r]], summary(m)$loglik)
+            coefs[[b]][[r]] = c(coefs[[b]][[r]], coef(m)[2])
+        }
+        names(ll[[b]][[r]]) = names(ll.pred[[b]][[r]]) = names(coefs[[b]][[r]]) = colnames(ssum2)
+        res[[b]][[r]] = data.frame(cbind(ll[[b]][[r]], coefs[[b]][[r]], ll.pred[[b]][[r]])[rev(order(ll.pred[[b]][[r]])),])
+        colnames(res[[b]][[r]]) = c("loglik", "coefficient", "loglik.pred")
+        res[[b]][[r]]$rank.pred = 1:nrow(res[[b]][[r]])
+        res[[b]][[r]]$rank.ll = rev(order(res[[b]][[r]]$loglik))
+        res[[b]][[r]]$name = rownames(res[[b]][[r]])
+    }
+}
+
+
+
+#Compare on the basis of predictive ranks:
+comprehensive = data.frame(matrix(NA, 0, 2))
+for (b in 1:B) {
+    combo = data.frame(matrix(NA, 0, 6))
+    for (r in responses) {
+        combo = rbind(combo, cbind(r, res[[b]][[r]]))
+    }
+    comprehensive = rbind(comprehensive, combo %>% group_by(name) %>% summarize(mean(rank.pred)))
+}
+colnames(comprehensive)[2] = 'rank.pred'
+comprehensive %>% group_by(name) %>% summarize(mean(rank.pred)) -> comp
+
 
 
 #Remove the useless columns:

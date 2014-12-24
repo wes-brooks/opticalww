@@ -1,0 +1,15 @@
+---
+title: "Using an excitation-emission spectrum to predict contamination in water samples"
+author: "Wesley Brooks"
+date: "Tuesday December 21, 2014"
+output: html_document
+---
+
+#Introduction
+Our goal is to use the optical properties of a water sample in order to estimate the concentration of pathogens in the water. The optical properties under consideration are the absorption and the excitation-emission matrix (EEM). Absorption measures the proportion of light that is absorbed by the water at a range of wavelengths. In the data we have available here, the absorption is measured from $200$nm to $750$nm, at $1$nm intervals. The EEM is a matrix of the observed flourescence over a range of wavelengths when the water is stimulated with light at a particular wavelength. The matrix shape arises because the emission is measured for each value in a range of excitation wavelengths. The data in this study was excited at wavelengths from $240$nm to $440$nm in $5$nm intervals. The emission was measured from $290$nm to $600$nm in $2$nm intervals. The physics of fluorescence imply that emission is always at a longer wavelength than excitation. For our data, the minimum measured emission wavelength for excitation at $x$nm is $(x+14)$nm.
+
+Both the absorption and the EEM are measurements of a spectrum, and can be thought of as functions of the wavelength(s). Our analysis will use the spectrum to estimate the concentration of wastewater contamination in the water samples. The optical data consist of hundreds (abosorption) or thousands (EEM) of covariates but there are only a few dozen observations. This is a $n<<p$ situation, also known as "wide data". The abundance of covariates poses problems because we are likely to find some covariates that have no association with the response but appear to, by random chance.
+
+
+
+#b
