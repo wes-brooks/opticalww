@@ -5,6 +5,16 @@ library(reshape2)
 ss = read.csv("data/SSvectorized.csv")
 ssum = read.csv("data/SSSummaryOct222014.csv")
 
+#Import MMSD data:
+mmsd = read.csv("data/MMSDvectorized.csv")
+
+#Import GLRI data:
+glri = read.csv("data/GLRIvectorized.csv")
+
+#Clean the summary data:
+ssum$mei = sapply(ssum$mei, function(x) levels(ssum$mei)[as.numeric(x)]) %>% as.numeric
+
+
 #find the columns corresponding to excitation-emission data
 indx = grepl("f(\\d{3})\\.(\\d{3})", colnames(ss)) %>% which
 

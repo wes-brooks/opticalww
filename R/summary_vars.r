@@ -1,11 +1,12 @@
 library(gbm)
 library(dplyr)
 library(survival)
+library(censReg)
 
 source("R/import.r")
 
 #Constants used to simplify the code:
-B = 2 #Number of ways to slice the data
+B = 5 #Number of ways to slice the data
 n = nrow(ssum) #number of total observations
 h = 10 #Number of held-out observations in each slice of the data
 
@@ -13,8 +14,8 @@ h = 10 #Number of held-out observations in each slice of the data
 n.trees = 20000
 n.minobsinnode = 4
 interaction.depth = 3
-responses = c("Lachno.2", "Bac.human", "FC")
-lim.detect = c(Lachno.2=100, Bac.human=100, FC=100)
+responses = c("Lachno.2", "Bac.human", "FC", "mei", "modmtec")
+lim.detect = c(Lachno.2=225, Bac.human=225, FC=225, mei=225, mdomtec=1)
 
 #Extract the summary variables:
 ssum2 = ssum[,47:ncol(ssum)]
@@ -31,13 +32,14 @@ ord = list()
 infmean = list()
 ordmean = list()
 nothing = list()
+m = list()
 
 inf_untrans = list()
 ord_untrans = list()
 infmean_untrans = list()
 ordmean_untrans = list()
 nothing_untrans = list()
-
+m_untrans = list()
 
 #Slice up the data in B different ways:
 indx = lapply(1:B, function(b) sample(1:n, replace=TRUE))
@@ -51,6 +53,8 @@ for (r in responses) {
     inf[[r]] = matrix(NA, 0, length(vars))
     ord[[r]] = matrix(NA, 0, length(vars))
     colnames(inf[[r]]) = vars
+    m[[r]] = list()
+    m_untrans[[r]] = list()
     
     inf_untrans[[r]] = matrix(NA, 0, length(vars))
     ord_untrans[[r]] = matrix(NA, 0, length(vars))
@@ -58,10 +62,11 @@ for (r in responses) {
     
     #Model the response on each slice of the data, recording the ordering of the covariates:
     for (i in 1:B) {
+        min.detect = lim.detect[[r]]
         boot = tmp[indx[[i]],]
-        m = gbm(Surv(time=ifelse(r==0,0,-log(r)), event=r!=0, type='right')~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, distribution='coxph', cv.folds=5)
-        nt = gbm.perf(m)
-        summ = summary(m, n.trees=nt, plotit=FALSE)
+        m[[r]][[i]] = gbm(Surv(time=ifelse(r<=min.detect, 0, -log(r)), event=(r<=min.detect), type='right')~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, distribution='coxph', cv.folds=5)
+        nt = gbm.perf(m[[r]][[i]])
+        summ = summary(m[[r]][[i]], n.trees=nt, plotit=FALSE)
         
         o = order(as.character(summ$var))
         inf[[r]] = rbind(inf[[r]], summ$rel.inf[o])
@@ -76,9 +81,9 @@ for (r in responses) {
     #Model the response on each slice of the data, recording the ordering of the covariates:
     for (i in 1:B) {
         boot = tmp[indx[[i]],]
-        m = gbm(r~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, cv.folds=5)
-        nt = gbm.perf(m)
-        summ = summary(m, n.trees=nt, plotit=FALSE)
+        m_untrans[[r]][[i]] = gbm(r~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, cv.folds=5)
+        nt = gbm.perf(m_untrans[[r]][[i]])
+        summ = summary(m_untrans[[r]][[i]], n.trees=nt, plotit=FALSE)
         
         o = order(as.character(summ$var))
         inf_untrans[[r]] = rbind(inf_untrans[[r]], summ$rel.inf[o])
@@ -167,7 +172,7 @@ for (x in vars[order(ordmean[[r]])][nothing[[r]]]) {
 topnames = list()
 for (r in responses) {
     print(r)
-    apply(inf[[r]][,ord[[r]]], 2, function(x) 1 %in% x | 2 %in% x) %>% which %>% max -> idr
+    apply(ord[[r]], 2, function(x) 1 %in% x | 2 %in% x) %>% which %>% max -> idr
     infmean[[r]][ord[[r]]][1:idr] %>% names -> topnames[[r]]
 }
 
