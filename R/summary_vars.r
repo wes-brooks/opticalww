@@ -14,8 +14,8 @@ h = 10 #Number of held-out observations in each slice of the data
 n.trees = 20000
 n.minobsinnode = 4
 interaction.depth = 3
-responses = c("Lachno.2", "Bac.human", "FC", "mei", "modmtec")
-lim.detect = c(Lachno.2=225, Bac.human=225, FC=225, mei=225, mdomtec=1)
+responses = c("Lachno.2", "Bac.human")#, "FC", "mei", "modmtec")
+lim.detect = c(Lachno.2=225, Bac.human=225)#, FC=225, mei=225, mdomtec=1)
 
 #Extract the summary variables:
 ssum2 = ssum[,47:ncol(ssum)]
@@ -64,7 +64,10 @@ for (r in responses) {
     for (i in 1:B) {
         min.detect = lim.detect[[r]]
         boot = tmp[indx[[i]],]
-        m[[r]][[i]] = gbm(Surv(time=ifelse(r<=min.detect, 0, -log(r)), event=(r<=min.detect), type='right')~., data=boot, n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, distribution='coxph', cv.folds=5)
+        m[[r]][[i]] = gbm(Surv(time=ifelse(r<=min.detect, -log(min.detect), -log(r)), event=(r>min.detect), type='right')~.,
+                          data=train, n.trees=n.trees, n.minobsinnode=n.minobsinnode, shrinkage=0.0005,
+                          interaction.depth=interaction.depth, distribution='coxph',
+                          cv.folds=5)
         nt = gbm.perf(m[[r]][[i]])
         summ = summary(m[[r]][[i]], n.trees=nt, plotit=FALSE)
         

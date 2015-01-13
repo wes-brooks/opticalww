@@ -1,0 +1,79 @@
+---
+title: "Optical properties for sensing contamination"
+author: "Wesley Brooks"
+output: html_document
+---
+
+
+```{r import, echo=FALSE, message=FALSE}
+library(dplyr)
+library(gbm)
+
+ssum = read.csv("/Users/wrbrooks/git/eem/data/SSSummaryOct222014.csv")
+n = nrow(ssum)
+
+#Extract the summary variables:
+ssum2 = ssum[,47:ncol(ssum)]
+```
+
+
+
+Generate a new response column that aggregates the Lachno and Bacteroides columns.
+
+```{r impute, echo=FALSE}
+#Assume a Gaussian distribution for log(Lachno.2)
+pos.indx.L = which(ssum$Lachno.2 > 225)
+mu.Lachno = mean(log(ssum$Lachno.2[pos.indx.L]))
+sd.Lachno = sd(log(ssum$Lachno.2[pos.indx.L]))
+
+#compute the mean of the censored Lachno observations via rejection sampling:
+propose.L = rnorm(100000, mean=mu.Lachno, sd=sd.Lachno)
+mu.cens.L = mean(propose.L[propose.L<log(225)])
+
+#Assume a Gaussian distribution for log(Bachum)
+pos.indx.B = which(ssum$Bac.human > 225)
+mu.Bachum = mean(log(ssum$Bac.human[pos.indx.B]))
+sd.Bachum = sd(log(ssum$Bac.human[pos.indx.B]))
+
+#compute the mean of the censored bacteroides observations via rejection sampling:
+propose.B = rnorm(100000, mean=mu.Bachum, sd=sd.Bachum)
+mu.cens.B = mean(propose.B[propose.B<log(225)])
+
+#Now impute the censored means for the censored observations:
+ssum$Lachno.2[-pos.indx.L] = exp(mu.cens.L)
+ssum$Bac.human[-pos.indx.B] = exp(mu.cens.B)
+```
+
+
+```{r echo=FALSE}
+#Create the aggregate response column:
+tot = ssum$Lachno.2 + ssum$Bac.human
+ssum2$response = tot
+```
+
+For now, keep all the data. Split the data in half for a training and a validation set.
+
+```{r split, echo=FALSE}
+indx = sample(1:n, n %/% 2, replace=FALSE)
+train = ssum2[-indx,]
+test = ssum2[indx,]
+```
+
+
+
+```{r echo=FALSE}
+model = gbm(log(response) ~ ., data=train, n.trees=20000, shrinkage=0.0005, interaction.depth=4, n.minobsinnode=4, cv.folds=5)
+trees = gbm.perf(model, method='cv')
+```
+
+```{r echo=FALSE}
+#Compare the model's predictions to the test set
+pred = predict(model, test, n.trees=trees)
+
+#PRESS:
+sum((log(test$response) - pred)**2)
+
+#Rank difference:
+sum(abs(rank(test$response) - rank(pred)))
+```
+
