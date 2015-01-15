@@ -4,23 +4,33 @@ author: "Wesley Brooks"
 output: html_document
 ---
 
+The goal here is to establish the possibility of using optical properties of water for detecting sewage influence. We use the storm sewer data to train the model.
 
-```{r import, echo=FALSE, message=FALSE}
+```{r import-packages, echo=FALSE, message=FALSE, cache=TRUE}
 library(dplyr)
 library(gbm)
 
+set.seed(11181982)
+```
+
+
+
+
+```{r import-data, echo=FALSE, cache=TRUE}
 ssum = read.csv("/Users/wrbrooks/git/eem/data/SSSummaryOct222014.csv")
+mmsd = read.csv("/Users/wrbrooks/git/eem/data/MMSDSummaryOct222014.csv")
+glri = read.csv("/Users/wrbrooks/git/eem/data/GLRISummaryOct222014.csv")
 n = nrow(ssum)
 
 #Extract the summary variables:
 ssum2 = ssum[,47:ncol(ssum)]
 ```
 
+There are several possible indicators of sewage in the water samples. Both Lachnobacteria and Bacteroides are human-specific indicators that are measured in the data. We use the sum of the Lachnobacteria and Bacteroides counts as the response variable because they are both indicators of the same contamination process.
 
+Some observations of Lachnobacteria and/or Bacteroides are censored below the limit of detection. Since the GBM software doesn't handle interval-censored data, for now we will impute a value for the censored observations. The imputed value is computed by assuming that the log-transformed counts follow a normal distribution, and imputing for the censored observations the mean of that distribution, conditional on being below the limit of detection. The mean is calculated by rejection sampling from the estimated distribtution of the log-counts.
 
-Generate a new response column that aggregates the Lachno and Bacteroides columns.
-
-```{r impute, echo=FALSE}
+```{r impute, echo=FALSE, cache=TRUE}
 #Assume a Gaussian distribution for log(Lachno.2)
 pos.indx.L = which(ssum$Lachno.2 > 225)
 mu.Lachno = mean(log(ssum$Lachno.2[pos.indx.L]))
@@ -42,18 +52,15 @@ mu.cens.B = mean(propose.B[propose.B<log(225)])
 #Now impute the censored means for the censored observations:
 ssum$Lachno.2[-pos.indx.L] = exp(mu.cens.L)
 ssum$Bac.human[-pos.indx.B] = exp(mu.cens.B)
-```
 
-
-```{r echo=FALSE}
 #Create the aggregate response column:
 tot = ssum$Lachno.2 + ssum$Bac.human
 ssum2$response = tot
 ```
 
-For now, keep all the data. Split the data in half for a training and a validation set.
+We hold half the data in reserve for use in validating the predictive performance of models.
 
-```{r split, echo=FALSE}
+```{r split, echo=FALSE, cache=TRUE}
 indx = sample(1:n, n %/% 2, replace=FALSE)
 train = ssum2[-indx,]
 test = ssum2[indx,]
@@ -61,10 +68,12 @@ test = ssum2[indx,]
 
 
 
-```{r echo=FALSE}
-model = gbm(log(response) ~ ., data=train, n.trees=20000, shrinkage=0.0005, interaction.depth=4, n.minobsinnode=4, cv.folds=5)
+```{r echo=FALSE, cache=TRUE}
+model = gbm(log10(response) ~ ., data=train, n.trees=2000, shrinkage=0.005, interaction.depth=4, n.minobsinnode=4, cv.folds=nrow(train))
 trees = gbm.perf(model, method='cv')
 ```
+
+
 
 ```{r echo=FALSE}
 #Compare the model's predictions to the test set

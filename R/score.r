@@ -1,28 +1,40 @@
-#Combine the different contaminants:
+models = list()
+i = 0
 
-responses = c("Lachno.2", "Bac.human", "FC", "mei", "modmtec")
-lim.detect = c(Lachno.2=225, Bac.human=225, FC=225, mei=225, modmtec=1)
-
-score = rep(0, nrow(ssum))
-cens = rep(0, nrow(ssum))
-for (r in responses) {
-    score = score + (ssum[[r]] - mean(ssum[[r]], na.rm=TRUE)) / sd(ssum[[r]], na.rm=TRUE)
-    cens = cens + ifelse(is.na(ssum[[r]]), 0, as.numeric(ssum[[r]] <= lim.detect[r]))
-}
-ssum$score = score
-ssum$cens = cens
-
-
-indx = which(!is.na(ssum$score))
-drop = c("!")
-
-#Loop through creating models as long as there are variables with no practical influence on the response:
-while(length(drop) > 0) {
-    m = gbm(ssum$score[indx] ~., data=tmp[indx,], n.trees=n.trees, n.minobsinnode=n.minobsinnode, interaction.depth=interaction.depth, cv.folds=5)
-    nt = gbm.perf(m)
-    influence = summary(m, n.trees=nt, plotit=FALSE)
-    max.influence = influence$rel.inf[1]
-    threshold = max.influence / 100
-    drop = as.character(influence$var[which(influence$rel.inf < threshold)])
-    tmp = tmp[,-which(colnames(tmp) %in% drop)]
+while(TRUE) {
+    i = i+1
+    
+    indx = sample(1:n, n %/% 2, replace=FALSE)
+    train = ssum2[-indx,]
+    test = ssum2[indx,]
+    
+    #This is temporary, for LOO-CV:
+    train=ssum2
+    drop = c("!")
+    mm = list()
+    iter = 0
+    
+    #Loop through creating models as long as there are variables with no practical influence on the response:
+    while(ncol(train) > 2) {
+        iter = iter+1
+        print(iter)
+        
+        m = gbm(log10(response) ~., data=ssum2, n.trees=5000, shrinkage=0.005, n.minobsinnode=4, interaction.depth=5, cv.folds=nrow(train))
+        nt = gbm.perf(m)
+        influence = summary(m, n.trees=nt, plotit=FALSE)
+        
+        drop = as.character(influence$var[influence$rel.inf==0])
+        if (length(drop>0))
+            influence = influence[-which(as.character(influence$var) %in% drop),]
+        nvar = length(influence$var)
+        drop = c(drop, as.character(rev(influence$var)[1:(nvar %/% 10)]))
+        print(paste("drop: ", length(drop), sep=""))
+    
+        train = train[,-which(colnames(train) %in% drop)]
+    
+        print(paste("keep: ", ncol(train) - 1, sep=""))
+        mm[[iter]] = m
+    }
+    
+    models[[i]] = mm    
 }
