@@ -1,15 +1,9 @@
 models = list()
-i = 0
 
-while(TRUE) {
-    i = i+1
-    
-    indx = sample(1:n, n %/% 2, replace=FALSE)
-    train = ssum2[-indx,]
-    test = ssum2[indx,]
-    
+for (ev in 1:4) {
     #This is temporary, for LOO-CV:
-    train=ssum2
+    train = ssum2[ssum$Event!=ev,]
+    test = ssum2[ssum$Event==ev,]
     drop = c("!")
     mm = list()
     iter = 0
@@ -19,7 +13,9 @@ while(TRUE) {
         iter = iter+1
         print(iter)
         
-        m = gbm(log10(response) ~., data=ssum2, n.trees=5000, shrinkage=0.005, n.minobsinnode=4, interaction.depth=5, cv.folds=nrow(train))
+        m = gbm(log10(response) ~., data=train, n.trees=5000, shrinkage=0.005,
+                n.minobsinnode=8, interaction.depth=4, cv.folds=nrow(train),
+                n.cores=6)
         nt = gbm.perf(m)
         influence = summary(m, n.trees=nt, plotit=FALSE)
         
@@ -38,3 +34,4 @@ while(TRUE) {
     
     models[[i]] = mm    
 }
+
