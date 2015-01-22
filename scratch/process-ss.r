@@ -1,26 +1,28 @@
+ss = dfOptSumAll
+
 #Assume a Gaussian distribution for log(Lachno.2)
-cens.indx.L = which(glri$Lachno.2.cn.100ml <= 111)
-mu.Lachno = mean(log(glri$Lachno.2.cn.100ml[-cens.indx.L]), na.rm=TRUE)
-sd.Lachno = sd(log(glri$Lachno.2.cn.100ml[-cens.indx.L]), na.rm=TRUE)
+cens.indx.L = which(ss$Lachno.2 <= 225)
+mu.Lachno = mean(log(ss$Lachno.2[-cens.indx.L]), na.rm=TRUE)
+sd.Lachno = sd(log(ss$Lachno.2[-cens.indx.L]), na.rm=TRUE)
 
 #compute the mean of the censored Lachno observations via rejection sampling:
 propose.L = rnorm(100000, mean=mu.Lachno, sd=sd.Lachno)
-mu.cens.L = mean(propose.L[propose.L<log(111)])
+mu.cens.L = mean(propose.L[propose.L<log(225)])
 
 #Assume a Gaussian distribution for log(Bachum)
-cens.indx.B = which(glri$BACHUM.cn.100mls <= 127)
-mu.Bachum = mean(log(glri$BACHUM.cn.100mls[-cens.indx.B]), na.rm=TRUE)
-sd.Bachum = sd(log(glri$BACHUM.cn.100mls[-cens.indx.B]), na.rm=TRUE)
+cens.indx.B = which(ss$Bac.human <= 225)
+mu.Bachum = mean(log(ss$Bac.human[-cens.indx.B]), na.rm=TRUE)
+sd.Bachum = sd(log(ss$Bac.human[-cens.indx.B]), na.rm=TRUE)
 
 #compute the mean of the censored bacteroides observations via rejection sampling:
 propose.B = rnorm(100000, mean=mu.Bachum, sd=sd.Bachum)
-mu.cens.B = mean(propose.B[propose.B<log(127)])
+mu.cens.B = mean(propose.B[propose.B<log(225)])
 
 #Now impute the censored means for the censored observations:
-glri$Lachno.2.cn.100ml[cens.indx.L] = exp(mu.cens.L)
-glri$BACHUM.cn.100mls[cens.indx.B] = exp(mu.cens.B)
-
-
+ss$Lachno.2[cens.indx.L] = exp(mu.cens.L)
+ss$Bac.human[cens.indx.B] = exp(mu.cens.B)
+ss$response = ss$Lachno.2 + ss$Bac.human
+ss.full$response = ss$response
 
 g2 = glri[,vs]
 g2$response = glri$Lachno.2.cn.100ml + glri$BACHUM.cn.100mls

@@ -2,7 +2,7 @@ library(dplyr)
 library(reshape2)
 
 #import the SS data
-ss = read.csv("data/SSvectorized.csv")
+ss.full = read.csv("data/SSvectorized.csv")
 ssum = read.csv("data/SSSummaryOct222014.csv")
 
 #Import MMSD data:
