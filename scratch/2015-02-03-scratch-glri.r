@@ -2,21 +2,23 @@
 #```{r echo=FALSE}
 load("data/GLRIOptSummaryJan072015.RData")
 glri = dfOptSumAll
-predictors = names(glri)[which(names(glri)=="A750"):ncol(glri)]
+predictors = names(glri)[which(names(glri)=="OB1"):ncol(glri)]
 
 glri$human.tot = glri$BACHUM.cn.100mls + glri$Lachno.2.cn.100ml
-lim.detect = c(lachno=111, bachum=127)
+lim.detect = list(lachno=225, bachum=225)
 
 #Set the range in which this observations's count may lie:
-bacteroides.censored = ifelse(glri$BACHUM.cn.100mls <= lim.detect['bachum'], TRUE, FALSE)
-lachno.censored = ifelse(glri$Lachno.2.cn.100ml <= lim.detect['lachno'], TRUE, FALSE)
+bacteroides.censored = ifelse(glri$BACHUM.cn.100mls <= lim.detect$bachum, TRUE, FALSE)
+lachno.censored = ifelse(glri$Lachno.2.cn.100ml <= lim.detect$lachno, TRUE, FALSE)
 event = ifelse(bacteroides.censored & lachno.censored, 2,
                ifelse(bacteroides.censored | lachno.censored, 3, 1))
-right = ifelse(bacteroides.censored & lachno.censored, lim.detect['bachum']+lim.detect['lachno'],
-               ifelse(bacteroides.censored, glri$Lachno.2.cn.100ml + lim.detect['bachum'],
-                      ifelse(lachno.censored, glri$BACHUM.cn.100mls + lim.detect['lachno'],
+
+right = ifelse(bacteroides.censored & lachno.censored, lim.detect$bachum+lim.detect$lachno,
+               ifelse(bacteroides.censored, glri$Lachno.2.cn.100ml + lim.detect$bachum,
+                      ifelse(lachno.censored, glri$BACHUM.cn.100mls + lim.detect$lachno,
                              glri$BACHUM.cn.100mls + glri$Lachno.2.cn.100ml )))
-left = ifelse(bacteroides.censored & lachno.censored, 450,
+
+left = ifelse(bacteroides.censored & lachno.censored, lim.detect$bachum+lim.detect$lachno,
               ifelse(bacteroides.censored, glri$Lachno.2.cn.100ml,
                      ifelse(lachno.censored, glri$BACHUM.cn.100mls,
                             glri$BACHUM.cn.100mls + glri$Lachno.2.cn.100ml)))
