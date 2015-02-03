@@ -1,0 +1,113 @@
+
+
+## Workflow for identifying potential predictors:
+
+ - Aggregate the Bacteroides and Lachno counts, and log them with proper detection limits
+ - Regress each candidate predictor against the aggregated response, using censored regression via the survreg function.
+ 
+```{r echo=FALSE}
+load("data/dfOptAnalysisDataSSJan2015.RData")
+ssSum = dfOptSumAll
+predictors = names(ssSum)[which(names(ssSum)=="OB1"):ncol(ssSum)]
+
+ssSum$human.tot = ssSum$Bac.human + ssSum$Lachno.2
+lim.detect = c(Lachno.2=225, Bac.human=225)
+
+#Set the range in which this observations's count may lie:
+bacteroides.censored = ifelse(ssSum$Bac.human <= lim.detect['Bac.human'], TRUE, FALSE)
+lachno.censored = ifelse(ssSum$Lachno.2 <= lim.detect['Lachno.2'], TRUE, FALSE)
+event = ifelse(bacteroides.censored & lachno.censored, 2,
+            ifelse(bacteroides.censored | lachno.censored, 3, 1))
+right = ifelse(bacteroides.censored & lachno.censored, lim.detect['Bac.human']+lim.detect['Lachno.2'],
+            ifelse(bacteroides.censored, ssSum$Lachno.2 + lim.detect['Bac.human'],
+                ifelse(lachno.censored, ssSum$Bac.human + lim.detect['Lachno.2'],
+                    ssSum$Bac.human+ssSum$Lachno.2 )))
+left = ifelse(bacteroides.censored & lachno.censored, 450,
+            ifelse(bacteroides.censored, ssSum$Lachno.2,
+                ifelse(lachno.censored, ssSum$Bac.human,
+                    ssSum$Bac.human+ssSum$Lachno.2)))
+
+z.score = list()
+chi2.score = list()
+for (ev in unique(ssSum$event)) {
+    z.score[[ev]] = list()
+    chi2.score[[ev]] = list()
+    indx = which(ssSum$event==ev)
+    for (p in predictors) {
+        m = survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~ssSum[[p]][indx]*log10(ssSum$DOCResult[indx]), dist='gaussian')
+        z.score[[ev]][[p]] = summary(m)$table[2,'z']
+        chi2.score[[ev]][[p]] = summary(m)$chi
+    }
+}
+
+zscore.ssum = matrix(NA, 0, length(predictors))
+for(ev in unique(ssSum$event))
+    zscore.ssum = rbind(zscore.ssum, unlist(z.score[[ev]]))
+
+
+chi2score.ssum = matrix(NA, 0, length(predictors))
+for(ev in unique(ssSum$event))
+    chi2score.ssum = rbind(chi2score.ssum, unlist(chi2.score[[ev]]))
+
+
+predrank = matrix(NA, 0, length(predictors))
+for(ev in unique(ssSum$event))
+    predrank = rbind(predrank, rank(abs(unlist(z.score[[ev]]))))
+```
+
+
+
+```{r echo=FALSE}
+load("data/GLRIOptSummaryJan072015.RData")
+glriSumm = dfOptSumAll
+predictors = names(glriSumm)[which(names(glriSumm)=="OB1"):ncol(glriSumm)]
+
+glriSumm$human.tot = glriSumm$BACHUM.cn.100mls + glriSumm$Lachno.2.cn.100ml
+lim.detect = c(lachno=225, bachum=225)
+
+#Set the range in which this observations's count may lie:
+bacteroides.censored = ifelse(glriSumm$BACHUM.cn.100mls <= lim.detect['bachum'], TRUE, FALSE)
+lachno.censored = ifelse(glriSumm$Lachno.2.cn.100ml <= lim.detect['lachno'], TRUE, FALSE)
+event = ifelse(bacteroides.censored & lachno.censored, 2,
+            ifelse(bacteroides.censored | lachno.censored, 3, 1))
+right = ifelse(bacteroides.censored & lachno.censored, lim.detect['bachum']+lim.detect['lachno'],
+            ifelse(bacteroides.censored, glriSumm$Lachno.2.cn.100ml + lim.detect['bachum'],
+                ifelse(lachno.censored, glriSumm$BACHUM.cn.100mls + lim.detect['lachno'],
+                    glriSumm$BACHUM.cn.100mls + glriSumm$Lachno.2.cn.100ml )))
+left = ifelse(bacteroides.censored & lachno.censored, 450,
+            ifelse(bacteroides.censored, glriSumm$Lachno.2.cn.100ml,
+                ifelse(lachno.censored, glriSumm$BACHUM.cn.100mls,
+                    glriSumm$BACHUM.cn.100mls + glriSumm$Lachno.2.cn.100ml)))
+
+
+z.score = list()
+chi2.score = list()
+for (ev in unique(glriSumm$Site)) {
+    z.score[[ev]] = list()
+    chi2.score[[ev]] = list()
+    indx = which(glriSumm$Site==ev)
+    for (p in predictors) {
+        m = survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~glriSumm[[p]][indx]*log10(glriSumm$DOCResult[indx]), dist='gaussian')
+        z.score[[ev]][[p]] = summary(m)$table[2,'z']
+        chi2.score[[ev]][[p]] = summary(m)$chi
+    }
+}
+
+
+zscore.gsum = matrix(NA, 0, length(predictors))
+for(ev in unique(glriSumm$Site))
+    zscore.gsum = rbind(zscore.gsum, unlist(z.score[[ev]]))
+
+
+chi2score.gsum = matrix(NA, 0, length(predictors))
+for(ev in unique(glriSumm$Site))
+    chi2score.gsum = rbind(chi2score.gsum, unlist(chi2.score[[ev]]))
+
+
+
+
+predrank = matrix(NA, 0, length(predictors))
+for(ev in unique(glriSumm$Site))
+    predrank = rbind(predrank, rank(abs(unlist(z.score[[ev]]))))
+```
+
