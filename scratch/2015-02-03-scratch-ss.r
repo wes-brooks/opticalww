@@ -1,8 +1,11 @@
-#load("data/dfOptAnalysisDataSSJan2015.RData")
-#
-#ss.full = dfOptSumAll
+load("data/dfOptAnalysisDataSSJan2015.RData")
 ss.sum = dfOptSumAll
 predictors = names(ss.sum)[which(names(ss.sum)=="OB1"):ncol(ss.sum)]
+
+#Find the mean illumination of the EEM spectrum:
+ss.full = read.csv("data/SSvectorized.csv")
+mm = rowMeans(ss.full[,566:5068])
+ss.sum$mm = mm
 
 ss.sum$human.tot = ss.sum$Bac.human + ss.sum$Lachno.2
 lim.detect = c(Lachno.2=225, Bac.human=225)
@@ -26,8 +29,10 @@ z.score.sssum = list()
 for (ev in unique(ss.sum$event)) {
     z.score.sssum[[ev]] = list()
     indx = which(ss.sum$event==ev)
-    for (p in predictors)
-        z.score.sssum[[ev]][[p]] = summary(survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~ss.sum[[p]][indx] * log10(ss.sum$DOCResult[indx]), dist='gaussian'))$table[2,'z']
+    for (p in predictors) {
+        #z.score.sssum[[ev]][[p]] = summary(survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~ss.sum[[p]][indx] * log10(ss.sum$DOCResult[indx]), dist='gaussian'))$table[2,'z']
+        z.score.sssum[[ev]][[p]] = summary(survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~ss.sum[[p]][indx] * ss.sum$mm[indx], dist='gaussian'))$table[2,'z']
+    }
 }
 
 zscore.sssum = matrix(NA, 0, length(predictors))

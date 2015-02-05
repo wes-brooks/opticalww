@@ -4,6 +4,11 @@ load("data/GLRIOptSummaryJan072015.RData")
 glri = dfOptSumAll
 predictors = names(glri)[which(names(glri)=="OB1"):ncol(glri)]
 
+#Find the mean illumination of the EEM spectrum:
+glri.full = read.csv("data/GLRIvectorized.csv")
+gmm = rowMeans(glri.full[,590:5092])
+glri$gmm = gmm
+
 glri$human.tot = glri$BACHUM.cn.100mls + glri$Lachno.2.cn.100ml
 lim.detect = list(lachno=225, bachum=225)
 
@@ -33,7 +38,8 @@ for (ev in unique(glri$Site)) {
     chi2.score[[ev]] = list()
     indx = which(glri$Site==ev)
     for (p in predictors) {
-        m = survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~glri[[p]][indx]*log10(glri$DOCResult[indx]), dist='gaussian')
+        #m = survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~glri[[p]][indx] * log10(glri$DOCResult[indx]), dist='gaussian')
+        m = survreg(Surv(log10(left[indx]), log10(right[indx]), event=event[indx], type='interval')~glri[[p]][indx] * gmm[indx], dist='gaussian')
         z.score[[ev]][[p]] = summary(m)$table[2,'z']
         #t.score[[ev]][[p]] = summary(lm(glri$DOCResult[indx]~glri[[p]][indx]))$coefficients[2,'t value']
         chi2.score[[ev]][[p]] = summary(m)$chi
