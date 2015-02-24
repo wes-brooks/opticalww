@@ -1,0 +1,8 @@
+---
+title: "Progress So Far"
+author: "Wesley Brooks"
+date: "Tuesday, February 24, 2015"
+output: html_document
+---
+
+The goal of this study is to predict from optical excitation-emission data 
